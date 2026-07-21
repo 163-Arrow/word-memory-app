@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { appendImportedWords, createSession, dedupeImport, recordAnswer, restoreForLearning, taskWords } from '../src/logic';
+import { appendImportedWords, createSession, dedupeImport, ensureSessionQueue, recordAnswer, restoreForLearning, taskWords } from '../src/logic';
 import type { DailySession, Word } from '../src/types';
 const word=(id:number,status:Word['status']='learning'):Word=>({id,text:'Apple',meaning:'苹果',phonetic:'',status,streak:0,correctCount:0,wrongCount:0,createdAt:''});
 const answer=(s:DailySession, value='apple')=>recordAnswer(s,s.queue[s.currentIndex],value,'Apple');
@@ -10,6 +10,8 @@ describe('学习规则',()=>{
  it('已掌握词不会创建任务，恢复学习时连续轮数归零',()=>{expect(taskWords([word(1,'mastered'),word(2)])).toHaveLength(1);expect(restoreForLearning({...word(1,'mastered'),streak:3})).toMatchObject({status:'learning',streak:0})});
  it('会保留可持久化的当前轮次、队列、位置和统计',()=>{let s=createSession('2026-01-01',[word(1),word(2)]);s=answer(s);const restored=structuredClone(s);expect(restored).toMatchObject({round:1,currentIndex:1,correct:1});expect(restored.queue).toEqual(s.queue)});
  it('新导入单词只在下一轮加入，不插入当前队列',()=>{let s=createSession('2026-01-01',[word(1)]);const queue=[...s.queue];s=appendImportedWords(s,[2]);expect(s.queue).toEqual(queue);s=answer(s);expect(s.round).toBe(2);expect(s.queue).toContain(2)});
+ it('会修复有未掌握单词但队列为空或已耗尽的会话',()=>{const initial=createSession('2026-01-01',[word(1),word(2)]);const repaired=ensureSessionQueue({...initial,queue:[],currentIndex:0,completed:true});expect(repaired.queue).toHaveLength(2);expect(repaired.currentIndex).toBe(0);expect(repaired.completed).toBe(false);const exhausted=ensureSessionQueue({...initial,currentIndex:initial.queue.length});expect(exhausted.round).toBe(2);expect(exhausted.currentIndex).toBe(0)});
+ it('空词库创建的会话导入单词后可立即建立队列',()=>{let s=createSession('2026-01-01',[]);s=appendImportedWords(s,[1]);expect(s.completed).toBe(false);expect(s.queue).toEqual([1]);expect(s.currentIndex).toBe(0)});
  it('导入按大小写和首尾空格去重',()=>{const x=dedupeImport([{word:' Apple '},{word:'apple'},{word:''}],['PEAR']);expect(x.added).toHaveLength(1);expect(x.duplicate).toBe(1);expect(x.invalid).toBe(1)});
  it('浏览模式不影响轮数与掌握进度',()=>{const s=createSession('2026-01-01',[word(1)]);expect(s).toMatchObject({phase:'browse',round:1,currentIndex:0});expect(s.progresses[1].streak).toBe(0)});
 });

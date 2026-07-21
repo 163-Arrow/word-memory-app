@@ -18,9 +18,10 @@ export async function parseFile(file: File, sheet?: string): Promise<ParsedFile>
   const name = file.name.toLowerCase();
   if (name.endsWith('.txt')) return { sheets: ['文本'], rows: (await file.text()).split(/\r?\n/).map(line => line.split('\t')) };
   if (name.endsWith('.csv')) return { sheets: ['CSV'], rows: csvRows(await file.text()) };
-  const { default: readXlsxFile } = await import('read-excel-file/browser');
-  const workbook = await readXlsxFile(file); const sheets = workbook.map(entry => entry.sheet);
-  const selected = workbook.find(entry => entry.sheet === (sheet ?? sheets[0]))?.data ?? [];
+  const { default: getSheets, readSheet } = await import('read-excel-file/browser');
+  const workbook = await getSheets(file);
+  const sheets = workbook.map(entry => entry.sheet);
+  const selected = await readSheet(file, sheet ?? sheets[0]);
   return { sheets, rows: selected.map(row => row.map(cell => cell == null ? '' : String(cell))) };
 }
 
