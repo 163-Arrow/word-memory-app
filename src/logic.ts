@@ -10,7 +10,7 @@ export function recordAnswer(session: DailySession, wordId: number, answer: stri
 
 /** Adds imported words to today's session without changing the active round queue. */
 export function appendImportedWords(session: DailySession, wordIds: number[]): DailySession {
- const next = structuredClone(session); const firstImport = next.phase === 'browse' && next.queue.length === 0 && next.correct === 0 && next.wrong === 0 && next.currentIndex === 0; for (const wordId of wordIds) { if (!next.wordIds.includes(wordId)) { next.wordIds.push(wordId); next.progresses[wordId] = { wordId, streak: 0, qualified: false, correct: 0, wrong: 0 }; next.completed = false; } } if (firstImport) return ensureSpellingQueue(next); return next;
+ const next = structuredClone(session); const firstImport = next.phase === 'browse' && next.queue.length === 0 && next.correct === 0 && next.wrong === 0 && next.currentIndex === 0; const exhausted = next.queue.length > 0 && next.currentIndex >= next.queue.length; for (const wordId of wordIds) { if (!next.wordIds.includes(wordId)) { next.wordIds.push(wordId); next.progresses[wordId] = { wordId, streak: 0, qualified: false, correct: 0, wrong: 0 }; next.completed = false; } } if (exhausted) { next.queue = []; next.currentIndex = 0; next.round = Math.max(1, next.round + 1); } if (firstImport || exhausted) return ensureSpellingQueue(next); return next;
 }
 export function restoreForLearning(word: Word): Word { return { ...word, status: 'learning', streak: 0 }; }
 
